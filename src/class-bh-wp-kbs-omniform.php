@@ -14,7 +14,6 @@
 namespace BrianHenryIE\WP_KBS_OmniForm;
 
 use BrianHenryIE\WP_KBS_OmniForm\Admin\Admin_Assets;
-use BrianHenryIE\WP_KBS_OmniForm\Frontend\Frontend_Assets;
 use BrianHenryIE\WP_KBS_OmniForm\OmniForm\All_Forms;
 use BrianHenryIE\WP_KBS_OmniForm\OmniForm\View_Responses;
 use BrianHenryIE\WP_KBS_OmniForm\WP_Includes\I18n;
@@ -49,7 +48,6 @@ class BH_WP_KBS_OmniForm {
 
 		$this->set_locale();
 		$this->define_admin_hooks();
-		$this->define_frontend_hooks();
 
 		$this->define_post_hooks();
 		$this->define_view_responses_screen_hooks();
@@ -84,21 +82,6 @@ class BH_WP_KBS_OmniForm {
 
 		add_action( 'admin_enqueue_scripts', array( $admin_assets, 'enqueue_styles' ) );
 		add_action( 'admin_enqueue_scripts', array( $admin_assets, 'enqueue_scripts' ) );
-
-	}
-
-	/**
-	 * Register all of the hooks related to the public-facing functionality
-	 * of the plugin.
-	 *
-	 * @since    1.0.0
-	 */
-	protected function define_frontend_hooks(): void {
-
-		$frontend_assets = new Frontend_Assets( $this->settings );
-
-		add_action( 'wp_enqueue_scripts', array( $frontend_assets, 'enqueue_styles' ) );
-		add_action( 'wp_enqueue_scripts', array( $frontend_assets, 'enqueue_scripts' ) );
 
 	}
 
