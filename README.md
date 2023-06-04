@@ -1,90 +1,118 @@
-[![WordPress tested 6.1](https://img.shields.io/badge/WordPress-v6.1%20tested-0073aa.svg)](https://wordpress.org/plugins/bh-wp-kbs-omniform) [![PHPCS WPCS](https://img.shields.io/badge/PHPCS-WordPress%20Coding%20Standards-8892BF.svg)](https://github.com/WordPress-Coding-Standards/WordPress-Coding-Standards)  [![PHPStan ](.github/phpstan.svg)](https://github.com/szepeviktor/phpstan-wordpress) [![PHPUnit ](.github/coverage.svg)](https://brianhenryie.github.io/bh-wp-kbs-omniform/)
+[![WordPress tested 6.2](https://img.shields.io/badge/WordPress-v6.2%20tested-0073aa.svg)](https://wordpress.org/plugins/bh-wp-kbs-omniform) [![PHPCS WPCS](https://img.shields.io/badge/PHPCS-WordPress%20Coding%20Standards-8892BF.svg)](https://github.com/WordPress-Coding-Standards/WordPress-Coding-Standards)  [![PHPStan ](.github/phpstan.svg)](https://github.com/szepeviktor/phpstan-wordpress) [![PHPUnit ](.github/coverage.svg)](https://brianhenryie.github.io/bh-wp-kbs-omniform/)
 
 # BH WP KBS OmniForm
 
-## Contributing
+Allows using [OmniFrom](https://omniform.io/) as a form builder for [KB Support](https://wordpress.org/plugins/kb-support/) WordPress ticketing system.
 
-Clone this repo, open PhpStorm, then run `composer install` to install the dependencies.
+## Install
 
 ```
-git clone https://github.com/brianhenryie/bh-wp-kbs-omniform.git;
-open -a PhpStorm ./;
 composer install;
+# wp plugin install https://omniform.io/wp-content/uploads/2023/06/omniform.zip;
+composer create-plugin-archive
 ```
 
-For integration and acceptance tests, a local webserver must be running with `localhost:8080/bh-wp-kbs-omniform/` pointing at the root of the repo. MySQL must also be running locally – with two databases set up with:
+### Use
+
+Create a new OmniForm at `wp-admin/post-new.php?post_type=omniform`.
+Add:
+* Text, title "Name", name "post_title"
+* Email, title "Email", name "user_email"
+* Select, title "Please choose a topic", name "post_category", add some entries, e.g. damage, postage.
+* Textarea, title "How can we improve", name "post_content"
+* Checkbox, title "I agree to the privacy policy", name "privacy_accepted"
+* Submit, title "Submit"
+
+It's not always obvious where the name is set:
+
+![1-select-form-field.png](.github%2F1-select-form-field.png)
+
+![2-rename-field.png](.github%2F2-rename-field.png)
+
+Visit the All Forms list at `wp-admin/edit.php?post_type=omniform`.
+
+Quick-edit the new form and select "Open KB ticket with form submission", update. Ideally this would be in the block editor.
+
+![3-connect-form.png](.github%2F3-connect-form.png)
+
+An additional column, hidden by default, will indicate which forms open tickets, and the submission count.
+
+![4-connected-forms.png](.github%2F4-connected-forms.png)
+
+Visit your website and submit a ticket!
+
+See your responses at `wp-admin/edit.php?post_type=omniform_response`.
+
+![5-responses.png](.github%2F5-responses.png)
+
+Open KB Tickets at `wp-admin/edit.php?post_type=kbs_ticket`.
+
+NB: tickets are not visible to admins by default:
+> Administrators are Agents? If enabled, users with the Administrator role will also be Support Agents.
+
+Visit `wp-admin/edit.php?post_type=kbs_ticket&page=kbs-settings&tab=tickets&section=agents` to fix.
+
+![6-kb-admin-as-agent.png](.github%2F6-kb-admin-as-agent.png)
+
+Then view the tickets:
+
+![7-new-ticket.png](.github%2F7-new-ticket.png)
+
+## Operation
+
+The `kbs_add_ticket()` interface is:
+
+```php
+/**
+ * Adds a new ticket.
+ *
+ * @param	array{
+ *     			post_title: string,
+ *     			post_content: string,
+ *     			user_email: string,
+ *     			post_category?: int|array<int>, // Strings in omniform are converted/inserted as kb support ticket_category.
+ *     			status?: string,                // Default "new".
+ *     			participants?: array<string>,   // Defaults to the user email.
+ *     			submission_origin?: string,     // "URL of submission form". Autofilled from OmniForm `_wp_http_referer`. 
+ *     			source?: string,                // "website", "email" etc. Defaults to "omniform_{$id}".
+ *     			user_info: array{id?:int,first_name?:string,email?:string,last_name?:string},
+ *     			department?: int,
+ *     			agent_id?: int,
+ *     			attachments?: array|mixed,      // Uses `media_handle_upload()` to attach files.
+ *     			privacy_accepted: false|string, // Date string. Autofilled from form submission date if checked.
+ *     			terms_agreed: false|string,
+ *     			post_date?: string
+ *     			form_data?: array,              // All the form data is duplicated here.
+ * 		} $ticket_data	Ticket data.
+ * @return	int|false	Ticket ID on success, false on failure.
+ */
+function kbs_add_ticket( $ticket_data )	{
+```
+
+In your form, name your form elements to match the kb_support array parameters.
+
+The `source` is automatically set to `omniform_{$id}` and `submission_origin` is set to the URL the form was submitted from (as determined by OmniForm and set to `_wp_http_referer` on the response). 
+
+The ids for ticket categories are queried and if the category does not exist, it is created.
+
+Checkboxes for `privacy_accepted` and `terms_accepted` use the OmniForm respone post's time.
+
+All data is saved to the ticket's `form_data`.
+
+To further modify the data as it is inserted:
+
+```php
+add_filter( 'kbs_add_ticket_data', function( array $ticket_data ) {
+
+    // Modify!
+
+    return $ticket_data;
+});
 
 ```
-mysql_username="root"
-mysql_password="secret"
 
-# export PATH=${PATH}:/usr/local/mysql/bin
 
-# Make .env available 
-# Bash:
-export $(grep -v '^#' .env.testing | xargs)
-# Zsh:
-source .env.testing
 
-# Create the database user:
-# MySQL
-mysql -u $mysql_username -p$mysql_password -e "CREATE USER '"$TEST_DB_USER"'@'%' IDENTIFIED WITH mysql_native_password BY '"$TEST_DB_PASSWORD"';";
-# MariaDB
-mysql -u $mysql_username -p$mysql_password -e "CREATE USER '"$TEST_DB_USER"'@'%' IDENTIFIED BY '"$TEST_DB_PASSWORD"';";
-
-# Create the databases:
-mysql -u $mysql_username -p$mysql_password -e "CREATE DATABASE "$TEST_SITE_DB_NAME"; USE "$TEST_SITE_DB_NAME"; GRANT ALL PRIVILEGES ON "$TEST_SITE_DB_NAME".* TO '"$TEST_DB_USER"'@'%';";
-mysql -u $mysql_username -p$mysql_password -e "CREATE DATABASE "$TEST_DB_NAME"; USE "$TEST_DB_NAME"; GRANT ALL PRIVILEGES ON "$TEST_DB_NAME".* TO '"$TEST_DB_USER"'@'%';";
-
-# Import the WordPress database:
-mysql -u $mysql_username -p$mysql_password $TEST_SITE_DB_NAME < tests/_data/dump.sql
-```
-
-### WordPress Coding Standards
-
-See documentation on [WordPress.org](https://make.wordpress.org/core/handbook/best-practices/coding-standards/) and [GitHub.com](https://github.com/WordPress/WordPress-Coding-Standards).
-
-Correct errors where possible and list the remaining with:
-
-```
-vendor/bin/phpcbf; vendor/bin/phpcs
-```
-
-### Tests
-
-Tests use the [Codeception](https://codeception.com/) add-on [WP-Browser](https://github.com/lucatume/wp-browser) and include vanilla PHPUnit tests with [WP_Mock](https://github.com/10up/wp_mock). 
-
-Run tests with:
-
-```
-vendor/bin/codecept run unit;
-vendor/bin/codecept run wpunit;
-vendor/bin/codecept run integration;
-vendor/bin/codecept run acceptance;
-```
-
-Show code coverage (unit+wpunit):
-
-```
-XDEBUG_MODE=coverage composer run-script coverage-tests 
-```
-
-```
-vendor/bin/phpstan analyse --memory-limit 1G
-```
-
-To save changes made to the acceptance database:
-
-```
-export $(grep -v '^#' .env.testing | xargs)
-mysqldump -u $TEST_SITE_DB_USER -p$TEST_SITE_DB_PASSWORD $TEST_SITE_DB_NAME > tests/_data/dump.sql
-```
-
-To clear Codeception cache after moving/removing test files:
-
-```
-vendor/bin/codecept clean
-```
 
 ### More Information
 
